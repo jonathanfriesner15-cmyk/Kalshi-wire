@@ -1,0 +1,7 @@
+{
+  "functions": {
+    "api/markets.js": {
+      "runtime": "nodejs18.x"
+    }
+  }
+}
