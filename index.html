@@ -1,0 +1,515 @@
+<!DOCTYPE html>
+
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0" />
+  <meta name="apple-mobile-web-app-capable" content="yes" />
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
+  <title>Kalshi Wire</title>
+  <link href="https://fonts.googleapis.com/css2?family=DM+Mono:wght@400;500&family=Syne:wght@700;800&display=swap" rel="stylesheet" />
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; -webkit-tap-highlight-color: transparent; }
+    :root {
+      --bg:      #080810;
+      --bg2:     #0e0e1a;
+      --bg3:     #13131f;
+      --border:  rgba(255,255,255,0.07);
+      --sell:    #ff3b6b;
+      --buy:     #00e87a;
+      --warn:    #ffd60a;
+      --muted:   #3a3a52;
+      --text:    #e8e8f0;
+      --subtext: #5a5a78;
+    }
+    html, body { height: 100%; background: var(--bg); color: var(--text); font-family: 'DM Mono', monospace; overflow-x: hidden; }
+
+```
+@keyframes fadeUp   { from { opacity:0; transform:translateY(10px); } to { opacity:1; transform:translateY(0); } }
+@keyframes blink    { 0%,100%{ opacity:1; } 50%{ opacity:0.2; } }
+@keyframes glow     { 0%,100%{ box-shadow: 0 0 8px var(--buy); } 50%{ box-shadow: 0 0 18px var(--buy); } }
+@keyframes sellGlow { 0%,100%{ box-shadow: 0 0 8px var(--sell); } 50%{ box-shadow: 0 0 18px var(--sell); } }
+
+/* ── TOP NAV ── */
+#nav {
+  position: sticky; top: 0; z-index: 200;
+  background: rgba(8,8,16,0.92);
+  backdrop-filter: blur(20px);
+  -webkit-backdrop-filter: blur(20px);
+  border-bottom: 1px solid var(--border);
+  padding: 14px 20px 12px;
+}
+#nav-top { display: flex; justify-content: space-between; align-items: center; margin-bottom: 12px; }
+#wordmark { font-family: 'Syne', sans-serif; font-size: 22px; font-weight: 800; letter-spacing: 0.04em; color: #fff; }
+#status-pill {
+  display: flex; align-items: center; gap: 6px;
+  background: var(--bg2); border: 1px solid var(--border);
+  border-radius: 20px; padding: 5px 12px;
+  font-size: 10px; color: var(--subtext); letter-spacing: 0.08em;
+}
+#status-dot { width: 6px; height: 6px; border-radius: 50%; background: var(--buy); box-shadow: 0 0 6px var(--buy); flex-shrink: 0; }
+
+/* stats row */
+#stats-row { display: flex; gap: 6px; }
+.stat-pill {
+  flex: 1; background: var(--bg2); border: 1px solid var(--border);
+  border-radius: 10px; padding: 8px 6px; text-align: center;
+}
+.stat-num { font-family: 'Syne', sans-serif; font-size: 20px; font-weight: 800; line-height: 1; }
+.stat-lbl { font-size: 8px; color: var(--subtext); letter-spacing: 0.1em; margin-top: 2px; }
+
+/* ── TABS ── */
+#tabs {
+  display: flex; gap: 6px; padding: 12px 20px 0;
+  border-bottom: 1px solid var(--border);
+  background: var(--bg);
+  position: sticky; top: 109px; z-index: 100;
+}
+.tab {
+  flex: 1; padding: 9px 6px; text-align: center;
+  font-size: 10px; font-weight: 500; letter-spacing: 0.1em;
+  color: var(--subtext); border-bottom: 2px solid transparent;
+  cursor: pointer; transition: all 0.2s; background: none; border-top: none; border-left: none; border-right: none;
+  font-family: 'DM Mono', monospace;
+}
+.tab.active-all  { color: var(--text);  border-bottom-color: var(--text); }
+.tab.active-sell { color: var(--sell);  border-bottom-color: var(--sell); }
+.tab.active-buy  { color: var(--buy);   border-bottom-color: var(--buy); }
+.tab.active-pos  { color: #7dd3fc;      border-bottom-color: #7dd3fc; }
+
+/* ── PAGES ── */
+.page { display: none; padding: 16px 20px 100px; }
+.page.active { display: block; }
+
+/* ── ALERT CARD ── */
+.alert-card {
+  border-radius: 14px; padding: 16px; margin-bottom: 12px;
+  animation: fadeUp 0.3s ease;
+  position: relative; overflow: hidden;
+}
+.alert-card.sell { background: rgba(255,59,107,0.07); border: 1px solid rgba(255,59,107,0.25); }
+.alert-card.buy  { background: rgba(0,232,122,0.07);  border: 1px solid rgba(0,232,122,0.25); }
+.alert-card.critical.sell { animation: sellGlow 2s ease-in-out infinite; }
+.alert-card.critical.buy  { animation: glow 2s ease-in-out infinite; }
+
+.card-top { display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 10px; }
+.card-badges { display: flex; gap: 6px; flex-wrap: wrap; align-items: center; }
+.badge-side {
+  font-size: 11px; font-weight: 700; letter-spacing: 0.12em;
+  color: #000; padding: 3px 10px; border-radius: 5px;
+}
+.badge-type {
+  font-size: 9px; letter-spacing: 0.1em; color: var(--subtext);
+  background: rgba(255,255,255,0.05); border: 1px solid var(--border);
+  padding: 3px 8px; border-radius: 5px;
+}
+.badge-crit {
+  font-size: 9px; font-weight: 700; letter-spacing: 0.1em;
+  color: var(--warn); background: rgba(255,214,10,0.1);
+  border: 1px solid rgba(255,214,10,0.3);
+  padding: 3px 8px; border-radius: 5px;
+  animation: blink 1s ease-in-out infinite;
+}
+.badge-owned {
+  font-size: 9px; letter-spacing: 0.08em; color: var(--sell);
+  background: rgba(255,59,107,0.1); border: 1px solid rgba(255,59,107,0.2);
+  padding: 3px 8px; border-radius: 5px;
+}
+.dismiss-btn { background: none; border: none; color: var(--muted); font-size: 18px; cursor: pointer; line-height: 1; padding: 0 0 0 8px; }
+.card-age { font-size: 9px; color: var(--muted); white-space: nowrap; }
+
+.card-title { font-size: 15px; font-weight: 500; color: var(--text); margin-bottom: 4px; line-height: 1.3; }
+.card-label { font-size: 11px; font-weight: 500; margin-bottom: 10px; }
+.card-action {
+  font-size: 11px; color: #8888aa; padding: 8px 12px;
+  background: rgba(255,255,255,0.03); border-radius: 8px;
+  margin-bottom: 12px; line-height: 1.5;
+}
+.card-meta { display: flex; gap: 12px; margin-bottom: 12px; flex-wrap: wrap; }
+.card-meta span { font-size: 10px; color: var(--subtext); }
+
+.card-btns { display: flex; gap: 8px; }
+.cta-btn {
+  flex: 1; padding: 12px; border-radius: 10px; border: none;
+  font-size: 11px; font-weight: 700; letter-spacing: 0.08em;
+  cursor: pointer; font-family: 'DM Mono', monospace; color: #000;
+}
+.web-btn {
+  padding: 12px 14px; border-radius: 10px;
+  border: 1px solid var(--border); color: var(--subtext);
+  background: rgba(255,255,255,0.03); font-size: 10px;
+  font-weight: 500; text-decoration: none; white-space: nowrap;
+  font-family: 'DM Mono', monospace; display: flex; align-items: center;
+}
+
+/* ── MARKET TILE ── */
+.market-tile {
+  border-radius: 14px; padding: 14px 16px; margin-bottom: 10px;
+  transition: all 0.2s;
+}
+.market-tile.unowned { background: var(--bg2); border: 1px solid var(--border); }
+.market-tile.owned   { background: rgba(0,232,122,0.06); border: 1px solid rgba(0,232,122,0.3); }
+
+.tile-title { font-size: 12px; color: var(--subtext); margin-bottom: 8px; line-height: 1.4; }
+.tile-row { display: flex; justify-content: space-between; align-items: center; margin-bottom: 6px; }
+.tile-pct { font-family: 'Syne', sans-serif; font-size: 22px; font-weight: 800; }
+.tile-expiry { font-size: 10px; }
+.tile-bar { height: 4px; border-radius: 2px; background: var(--bg3); overflow: hidden; margin-bottom: 10px; }
+.tile-fill { height: 100%; border-radius: 2px; transition: width 0.5s ease; }
+
+.own-btn {
+  width: 100%; padding: 10px; border-radius: 9px;
+  font-size: 10px; font-weight: 700; letter-spacing: 0.1em;
+  cursor: pointer; font-family: 'DM Mono', monospace; transition: all 0.15s;
+}
+.own-btn.unowned { border: 1px solid var(--border); background: rgba(255,255,255,0.04); color: var(--subtext); }
+.own-btn.owned   { border: 1px solid rgba(0,232,122,0.4); background: rgba(0,232,122,0.1); color: var(--buy); }
+
+/* ── NOTIF BANNER ── */
+#notif-banner {
+  margin-bottom: 14px; padding: 14px 16px; border-radius: 14px;
+  background: rgba(255,214,10,0.06); border: 1px solid rgba(255,214,10,0.2);
+}
+#notif-banner p { font-size: 11px; color: #aaa870; line-height: 1.6; margin-bottom: 10px; }
+#notif-btn {
+  width: 100%; padding: 11px; border-radius: 10px;
+  background: rgba(255,214,10,0.15); border: 1px solid rgba(255,214,10,0.35);
+  color: var(--warn); font-size: 11px; font-weight: 700; letter-spacing: 0.08em;
+  cursor: pointer; font-family: 'DM Mono', monospace;
+}
+
+/* ── TIP BOX ── */
+.tip-box {
+  padding: 12px 14px; border-radius: 12px; font-size: 11px; line-height: 1.6; margin-bottom: 14px;
+}
+.tip-box.blue { background: rgba(125,211,252,0.05); border: 1px solid rgba(125,211,252,0.15); color: #7dd3fc; }
+.tip-box.green { background: rgba(0,232,122,0.05); border: 1px solid rgba(0,232,122,0.15); color: var(--buy); }
+
+/* ── EMPTY ── */
+.empty { text-align: center; padding: 60px 20px; }
+.empty-icon { font-size: 44px; opacity: 0.1; margin-bottom: 16px; }
+.empty-title { font-size: 12px; color: var(--muted); letter-spacing: 0.1em; margin-bottom: 6px; }
+.empty-sub { font-size: 10px; color: #1e1e2e; }
+
+/* ── SECTION HEADER ── */
+.section-hdr { font-size: 9px; color: var(--muted); letter-spacing: 0.14em; margin-bottom: 12px; }
+.divider { border: none; border-top: 1px solid var(--border); margin: 16px 0; }
+```
+
+  </style>
+</head>
+<body>
+
+<!-- NAV -->
+
+<div id="nav">
+  <div id="nav-top">
+    <div id="wordmark">KALSHI WIRE</div>
+    <div id="status-pill">
+      <span id="status-dot"></span>
+      <span id="status-label">WATCHING</span>
+    </div>
+  </div>
+  <div id="stats-row">
+    <div class="stat-pill"><div class="stat-num" id="stat-scans" style="color:var(--text);">0</div><div class="stat-lbl">SCANS</div></div>
+    <div class="stat-pill"><div class="stat-num" id="stat-sell"  style="color:var(--sell);">0</div><div class="stat-lbl">SELL</div></div>
+    <div class="stat-pill"><div class="stat-num" id="stat-buy"   style="color:var(--buy);">0</div><div class="stat-lbl">BUY</div></div>
+    <div class="stat-pill"><div class="stat-num" id="stat-owned" style="color:#7dd3fc;">0</div><div class="stat-lbl">OWNED</div></div>
+  </div>
+</div>
+
+<!-- TABS -->
+
+<div id="tabs">
+  <button class="tab active-all"  onclick="showTab('all')">ALL</button>
+  <button class="tab"             onclick="showTab('sell')">SELL</button>
+  <button class="tab"             onclick="showTab('buy')">BUY</button>
+  <button class="tab"             onclick="showTab('positions')">POSITIONS</button>
+</div>
+
+<!-- PAGE: ALL -->
+
+<div id="page-all" class="page active">
+  <div id="tip-all" class="tip-box blue">Click <strong>I BOUGHT THIS</strong> on the Positions tab to get sell alerts. Buy alerts show for everyone.</div>
+  <div id="alerts-all"></div>
+</div>
+
+<!-- PAGE: SELL -->
+
+<div id="page-sell" class="page">
+  <div id="alerts-sell"></div>
+</div>
+
+<!-- PAGE: BUY -->
+
+<div id="page-buy" class="page">
+  <div id="alerts-buy"></div>
+</div>
+
+<!-- PAGE: POSITIONS -->
+
+<div id="page-positions" class="page">
+  <div id="notif-banner">
+    <p>Enable notifications to get sell alerts even when this tab is in the background.</p>
+    <button id="notif-btn" onclick="requestNotifs()">ENABLE NOTIFICATIONS</button>
+  </div>
+  <div class="section-hdr">MARKETS — TAP TO MARK OWNED</div>
+  <div id="market-list"></div>
+</div>
+
+<script>
+var SEED = [
+  { id:"NASDAQ-4PM-UP",      ticker:"NASDAQ-4PM-UP",      title:"NASDAQ up at 4PM close?",        yes:61, volume:88000,  expiry:52, related:"NASDAQ-4PM-DOWN" },
+  { id:"NASDAQ-4PM-DOWN",    ticker:"NASDAQ-4PM-DOWN",    title:"NASDAQ down at 4PM close?",      yes:40, volume:84000,  expiry:52, related:"NASDAQ-4PM-UP"   },
+  { id:"BTC-ABOVE-67K",      ticker:"BTC-ABOVE-67K",      title:"BTC above $67K at 3PM?",         yes:54, volume:210000, expiry:38, related:"BTC-BELOW-67K"   },
+  { id:"BTC-BELOW-67K",      ticker:"BTC-BELOW-67K",      title:"BTC below $67K at 3PM?",         yes:48, volume:198000, expiry:38, related:"BTC-ABOVE-67K"   },
+  { id:"FED-ANNOUNCE-TODAY", ticker:"FED-ANNOUNCE-TODAY", title:"Fed statement today?",            yes:97, volume:33000,  expiry:18, related:null             },
+  { id:"OIL-UP-1PCT",        ticker:"OIL-UP-1PCT",        title:"Oil up more than 1% by close?",  yes:29, volume:45000,  expiry:44, related:null             },
+  { id:"SPY-500-CLOSE",      ticker:"SPY-500-CLOSE",      title:"SPY closes above $500?",         yes:73, volume:156000, expiry:55, related:null             },
+  { id:"GOLD-ABOVE-2000",    ticker:"GOLD-ABOVE-2000",    title:"Gold above $2000 at close?",     yes:82, volume:67000,  expiry:31, related:null             },
+];
+
+var markets  = SEED.map(function(m){ return Object.assign({},m); });
+var prev     = SEED.map(function(m){ return Object.assign({},m); });
+var alerts   = [];
+var owned    = new Set();
+var scanN    = 0, sellN = 0, buyN = 0, alertId = 0;
+var activeTab = "all";
+
+function kalshiWeb(t){ return "https://kalshi.com/markets/"+t.toLowerCase(); }
+function kalshiApp(t){ return "kalshi://markets/"+t.toLowerCase(); }
+function openKalshi(t){
+  window.location.href = kalshiApp(t);
+  setTimeout(function(){ window.open(kalshiWeb(t),"_blank"); }, 1200);
+}
+
+// Notifications
+function updateNotifBanner(){
+  var banner = document.getElementById("notif-banner");
+  var btn    = document.getElementById("notif-btn");
+  if (!("Notification" in window)){ banner.style.display="none"; return; }
+  if (Notification.permission === "granted"){
+    banner.style.background = "rgba(0,232,122,0.06)";
+    banner.style.borderColor = "rgba(0,232,122,0.2)";
+    banner.querySelector("p").style.color = "#00e87a";
+    banner.querySelector("p").textContent = "Notifications enabled. You'll get pinged for every sell signal.";
+    btn.style.display = "none";
+  } else if (Notification.permission === "denied"){
+    banner.querySelector("p").textContent = "Notifications blocked. Go to Safari Settings > Websites > Notifications to allow.";
+    btn.style.display = "none";
+  }
+}
+function requestNotifs(){
+  if (!("Notification" in window)) return;
+  Notification.requestPermission().then(function(){ updateNotifBanner(); });
+}
+function pushNotif(a){
+  if (!("Notification" in window) || Notification.permission !== "granted") return;
+  try { new Notification(a.side+" SIGNAL — "+a.urgency, { body: a.market+"\n"+a.label, tag: a.id }); } catch(e){}
+}
+
+// Detection
+function detectSpike(p, c){
+  var d = c.yes - p.yes;
+  if (Math.abs(d) < 8) return null;
+  var sell = d > 0;
+  return { type:"SPIKE", side: sell?"SELL":"BUY",
+    delta: Math.abs(d).toFixed(1),
+    label: sell ? "YES surged +"+Math.abs(d).toFixed(1)+"% — likely to correct" : "YES dropped -"+Math.abs(d).toFixed(1)+"% — dip opportunity",
+    action: sell ? "Exit YES before price corrects back down" : "Enter YES while price is depressed",
+    urgency: Math.abs(d) >= 14 ? "CRITICAL" : "HIGH" };
+}
+function detectArb(a, b){
+  if (!b) return null;
+  var sum = a.yes + b.yes, gap = sum - 100;
+  if (Math.abs(gap) < 6) return null;
+  return { type:"ARB", side: gap>0?"SELL":"BUY",
+    delta: Math.abs(gap).toFixed(1),
+    label: gap>0 ? "Pair sums "+sum.toFixed(1)+"% — overpriced by "+gap.toFixed(1)+"%" : "Pair sums "+sum.toFixed(1)+"% — gap of "+Math.abs(gap).toFixed(1)+"%",
+    action: gap>0 ? "Sell the higher YES leg before it corrects" : "Buy both YES legs — market undercounting",
+    urgency: Math.abs(gap) >= 12 ? "CRITICAL" : "HIGH" };
+}
+
+// Scan
+function runScan(){
+  var dot = document.getElementById("status-dot");
+  var lbl = document.getElementById("status-label");
+  dot.style.background = "#f59e0b"; dot.style.boxShadow = "0 0 6px #f59e0b";
+  dot.style.animation = "blink 0.4s ease-in-out infinite"; lbl.textContent = "SCANNING";
+
+  setTimeout(function(){
+    var next = prev.map(function(m){
+      return Object.assign({},m,{
+        yes:    Math.max(3,Math.min(97, m.yes+(Math.random()-0.48)*(Math.random()>0.82?20:3))),
+        expiry: Math.max(1, m.expiry-1),
+        volume: m.volume + Math.floor(Math.random()*2000),
+      });
+    });
+    var byId={};  next.forEach(function(m){ byId[m.id]=m; });
+    var fresh=[];
+
+    next.forEach(function(c,i){
+      var spike = detectSpike(prev[i],c);
+      if (spike){
+        if (spike.side==="SELL" && !owned.has(c.id)) {}
+        else {
+          var a=Object.assign({},spike,{id:"a"+(++alertId),market:c.title,ticker:c.ticker,expiry:c.expiry,volume:c.volume,ts:Date.now()});
+          fresh.push(a); pushNotif(a);
+          if(a.side==="SELL") sellN++; else buyN++;
+        }
+      }
+      if (c.related && c.id < c.related){
+        var partner = byId[c.related];
+        if (partner){
+          var arb = detectArb(c,partner);
+          if (arb){
+            if (arb.side==="SELL" && !owned.has(c.id) && !owned.has(partner.id)) {}
+            else {
+              var aa=Object.assign({},arb,{id:"a"+(++alertId),market:c.title+" vs "+partner.title,ticker:c.ticker,expiry:Math.min(c.expiry,partner.expiry),volume:c.volume+partner.volume,ts:Date.now()});
+              fresh.push(aa); pushNotif(aa);
+              if(aa.side==="SELL") sellN++; else buyN++;
+            }
+          }
+        }
+      }
+    });
+
+    prev=next; markets=next; scanN++;
+    fresh.forEach(function(a){ alerts.unshift(a); });
+    if(alerts.length>40) alerts=alerts.slice(0,40);
+
+    dot.style.background="#00e87a"; dot.style.boxShadow="0 0 6px #00e87a";
+    dot.style.animation="none"; lbl.textContent="WATCHING";
+    renderAll();
+  }, 700);
+}
+
+// Render
+function ageStr(ts){
+  var s=Math.floor((Date.now()-ts)/1000);
+  return s<60 ? s+"s ago" : Math.floor(s/60)+"m ago";
+}
+
+function alertHTML(a){
+  var sell = a.side==="SELL";
+  var color = sell ? "var(--sell)" : "var(--buy)";
+  var cls   = "alert-card "+(sell?"sell":"buy")+(a.urgency==="CRITICAL"?" critical":"");
+  return '<div class="'+cls+'" id="card-'+a.id+'">'
+    +'<div class="card-top">'
+    +'<div class="card-badges">'
+    +'<span class="badge-side" style="background:'+color+';">'+a.side+'</span>'
+    +'<span class="badge-type">'+a.type+'</span>'
+    +(a.urgency==="CRITICAL"?'<span class="badge-crit">CRITICAL</span>':'')
+    +(sell?'<span class="badge-owned">YOU OWN THIS</span>':'')
+    +'</div>'
+    +'<div style="display:flex;align-items:center;gap:8px;">'
+    +'<span class="card-age" data-ts="'+a.ts+'">'+ageStr(a.ts)+'</span>'
+    +'<button class="dismiss-btn" onclick="dismissAlert(\''+a.id+'\')">×</button>'
+    +'</div>'
+    +'</div>'
+    +'<div class="card-title">'+a.market+'</div>'
+    +'<div class="card-label" style="color:'+color+';">'+a.label+'</div>'
+    +'<div class="card-action">→ '+a.action+'</div>'
+    +'<div class="card-meta">'
+    +'<span style="color:'+(a.expiry<20?"var(--sell)":"var(--subtext)")+';">expires '+a.expiry+'m</span>'
+    +'<span>vol $'+(a.volume/1000).toFixed(0)+'K</span>'
+    +'<span style="color:'+color+';font-weight:500;">Δ '+a.delta+'%</span>'
+    +'</div>'
+    +'<div class="card-btns">'
+    +'<button class="cta-btn" onclick="openKalshi(\''+a.ticker+'\')" style="background:'+color+';">'+a.side+' ON KALSHI →</button>'
+    +'<a href="'+kalshiWeb(a.ticker)+'" target="_blank" class="web-btn">WEB</a>'
+    +'</div>'
+    +'</div>';
+}
+
+function emptyHTML(msg){
+  return '<div class="empty"><div class="empty-icon">⚡</div><div class="empty-title">'+msg+'</div></div>';
+}
+
+function renderAlertList(elId, filter){
+  var el = document.getElementById(elId);
+  var filtered = filter==="all" ? alerts : alerts.filter(function(a){ return a.side===filter.toUpperCase(); });
+  el.innerHTML = filtered.length===0
+    ? emptyHTML(filter==="sell" ? "NO SELL ALERTS YET" : filter==="buy" ? "NO BUY ALERTS YET" : "WATCHING FOR SIGNALS")
+    : filtered.map(alertHTML).join("");
+}
+
+function renderMarkets(){
+  var el = document.getElementById("market-list");
+  el.innerHTML = markets.map(function(m){
+    var isOwned = owned.has(m.id);
+    var color = m.yes>=70?"var(--buy)":m.yes<=30?"var(--sell)":"#f59e0b";
+    return '<div class="market-tile '+(isOwned?"owned":"unowned")+'">'
+      +'<a href="'+kalshiWeb(m.ticker)+'" target="_blank" style="text-decoration:none;display:block;">'
+      +'<div class="tile-title">'+m.title+'</div>'
+      +'<div class="tile-row">'
+      +'<span class="tile-pct" style="color:'+color+';">'+m.yes.toFixed(0)+'%</span>'
+      +'<span class="tile-expiry" style="color:'+(m.expiry<20?"var(--sell)":"var(--subtext)")+';">~'+m.expiry+'m</span>'
+      +'</div>'
+      +'<div class="tile-bar"><div class="tile-fill" style="width:'+m.yes+'%;background:'+color+';"></div></div>'
+      +'</a>'
+      +'<button class="own-btn '+(isOwned?"owned":"unowned")+'" onclick="toggleOwned(\''+m.id+'\')">'
+      +(isOwned?"✓ OWNED — SELL ALERTS ON":"I BOUGHT THIS")
+      +'</button>'
+      +'</div>';
+  }).join("");
+}
+
+function renderStats(){
+  document.getElementById("stat-scans").textContent = scanN;
+  document.getElementById("stat-sell").textContent  = sellN;
+  document.getElementById("stat-buy").textContent   = buyN;
+  document.getElementById("stat-owned").textContent = owned.size;
+
+  var tipAll = document.getElementById("tip-all");
+  if (owned.size > 0){
+    tipAll.className = "tip-box green";
+    tipAll.innerHTML = "Watching <strong>"+owned.size+" position"+(owned.size>1?"s":"")+"</strong> for sell signals.";
+  } else {
+    tipAll.className = "tip-box blue";
+    tipAll.innerHTML = 'Go to <strong>Positions</strong> tab → tap <strong>I BOUGHT THIS</strong> to get sell alerts.';
+  }
+}
+
+function renderAll(){
+  renderStats();
+  renderAlertList("alerts-all",  "all");
+  renderAlertList("alerts-sell", "sell");
+  renderAlertList("alerts-buy",  "buy");
+  renderMarkets();
+}
+
+// Actions
+function toggleOwned(id){
+  owned.has(id) ? owned.delete(id) : owned.add(id);
+  renderAll();
+}
+function dismissAlert(id){
+  alerts = alerts.filter(function(a){ return a.id!==id; });
+  renderAll();
+}
+function showTab(tab){
+  activeTab = tab;
+  document.querySelectorAll(".page").forEach(function(p){ p.classList.remove("active"); });
+  document.querySelectorAll(".tab").forEach(function(t){ t.className="tab"; });
+  document.getElementById("page-"+tab).classList.add("active");
+  var tabs = document.querySelectorAll(".tab");
+  var idx  = ["all","sell","buy","positions"].indexOf(tab);
+  if(idx>=0) tabs[idx].className = "tab active-"+(tab==="positions"?"pos":tab);
+}
+
+// Age ticker
+setInterval(function(){
+  document.querySelectorAll("[data-ts]").forEach(function(el){
+    el.textContent = ageStr(parseInt(el.getAttribute("data-ts")));
+  });
+}, 1000);
+
+// Init
+updateNotifBanner();
+renderAll();
+setInterval(runScan, 8000);
+</script>
+
+</body>
+</html>
